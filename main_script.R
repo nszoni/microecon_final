@@ -24,13 +24,31 @@ df <- read_dta("Bonjour_data.dta")
 
 glimpse(df)
 
+aggregate(df[, c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')],
+                   list(df$twinno), function(x) c(round(mean(x, na.rm = TRUE), 2)))
+
+#working group
+df[, c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')] %>%
+  filter((df$full == 1) | (df$part == 1) | (df$self == 1)) %>%
+  summarize_all(list(mean), na.rm = TRUE)
+
+#pooled
+df[, c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')] %>%
+  summarize_all(list(mean), na.rm = TRUE)
+
+
 dfsum <- df %>% dfSummary(., plain.ascii = FALSE, style = "grid", 
                                                     graph.magnif = 0.75, valid.col = FALSE, tmp.img.dir = "/tmp") 
 
 dfsum$Missing <- NULL
 view(dfsum, file = "~/microecon_final/dfsum.html")
 
-cormatdf <- df2[, c()]
+cormatdf <- df[, c('bweight',
+                    'earning',
+                    'schyear',
+                    'highqua',
+                    'age',
+                    'own_exp')]
 
 cormat <- cormatdf %>% cor(use = "complete.obs") %>% round(., 2)
 
