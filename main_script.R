@@ -17,6 +17,7 @@ library(stargazer)
 library(ggplot2)
 library(reshape2)
 library(patchwork)
+library(Hmisc)
 
 wd <- file.path('~', 'microecon_final')
 setwd(wd)
@@ -93,6 +94,21 @@ cormatdf <- df[, c('highqua',
 
 cormat <- cormatdf %>% cor(use = "complete.obs") %>% round(., 2)
 
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+  )
+}
+
+res1 <- rcorr(as.matrix(cormatdf), type = 'pearson')
+res1 <- flattenCorrMatrix(res1$r, res1$P)
+
+write.table(subset(res1, row == 'highqua'), file = "~/microecon_final/res1.txt", sep="\t")
+
 # Get lower triangle of the correlation matrix
 get_lower_tri<-function(cormat){
   cormat[lower.tri(cormat)] <- NA
@@ -106,6 +122,7 @@ lower_tri <- get_lower_tri(cormat)
 melted_cormat <- melt(lower_tri, na.rm = TRUE)
 
 # Create a ggheatmap
+
 ggheatmap <- ggplot(melted_cormat, aes(Var2, Var1, fill = value)) +
   geom_tile(color = "white") +
   scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
@@ -133,6 +150,7 @@ p1 <- ggheatmap +
   labs(title = "Correlation heatmap between non-differenced variables",
        subtitle = "for feature selection of control variables")
 
+
 cormatdf <- pdf[, c('dhighqua',
                     'dbweight',
                     'dfull',
@@ -141,6 +159,13 @@ cormatdf <- pdf[, c('dhighqua',
                     'dmarried',
                     'down_exp',
                     'dexp_par')]
+
+res2 <- rcorr(as.matrix(cormatdf))
+res2 <- flattenCorrMatrix(res2$r, res2$P)
+
+write.table(subset(res2, row == 'dhighqua'), file = "~/microecon_final/res2.txt", sep="\t")
+
+#viz
 
 cormat <- cormatdf %>% cor(use = "complete.obs") %>% round(., 2)
 
@@ -184,6 +209,7 @@ p2 <- ggheatmap +
   labs(title = "Correlation heatmap of differenced variables",
        subtitle = "differencing reduced the correlation between regressors")
 
+
 p1 + p2
 
 #smoking as IV?
@@ -192,7 +218,12 @@ cormatdf <- pdf[, c('highqua',
                     'sm16',
                     'sm18')]
 
-cormat <- cormatdf %>% cor(use = "complete.obs") %>% round(., 2)
+res3 <- rcorr(as.matrix(cormatdf))
+res3 <- flattenCorrMatrix(res3$r, res3$P)
+
+write.table(subset(res3, row == 'highqua'), file = "~/microecon_final/res3.txt", sep="\t")
+
+cormat3 <- cormatdf %>% cor(use = "complete.obs") %>% round(., 2)
 
 # Get lower triangle of the correlation matrix
 get_lower_tri<-function(cormat){
@@ -239,8 +270,13 @@ cormatdf <- pdf[, c('dhighqua',
                     'dsm16',
                     'dsm18')]
 
-cormat <- cormatdf %>% cor(use = "complete.obs") %>% round(., 2)
+res4 <- rcorr(as.matrix(cormatdf))
+res4 <- flattenCorrMatrix(res4$r, res4$P)
 
+write.table(subset(res4, row == 'dhighqua'), file = "~/microecon_final/res4.txt", sep="\t")
+
+#viz
+cormat4 <- cormatdf %>% cor(use = "complete.obs") %>% round(., 2)
 # Get lower triangle of the correlation matrix
 get_lower_tri<-function(cormat){
   cormat[lower.tri(cormat)] <- NA
@@ -282,3 +318,4 @@ p4 <- ggheatmap +
        subtitle = "differencing reduced the correlation between education and smoking")
 
 p3 + p4
+
