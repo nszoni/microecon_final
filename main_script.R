@@ -158,3 +158,25 @@ ivsm18 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) | age + I(age**2/10
 
 stargazer(ols1, ivsm16, ivsm18, type = 'text', out = "models2.htm")
 
+#Log hourly earnings diff vs estimated years of schooling diff plot
+
+View(pdf)
+pdf$logearning <- log(pdf$earning)
+pdf$dlogearning <- diff(pdf$logearning)
+
+coef(lm(dlogearning ~ dhighqua, data = pdf))
+
+diffplot <- ggplot(data = pdf, mapping = aes(x = dhighqua, y = dlogearning)) +
+  geom_point(shape = 1) +
+  geom_abline(intercept = -0.01424146, slope =  0.03921526, colour = "red") +
+  coord_cartesian(xlim = c(-6,6), ylim = c(-2,2)) +
+  labs(
+    tag = "Figure 1",
+    title = "Differences in log earning per hour vs Differences in estimated schooling", 
+    y = "Differences in log earning per hour",
+    x = "Differences in estimated schooling"
+  ) +
+  theme_bw()
+
+
+
