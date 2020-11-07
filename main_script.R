@@ -225,5 +225,39 @@ diffplot <- ggplot(data = pdf, mapping = aes(x = dhighqua, y = dlogearning)) +
   ) +
   theme_bw()
 
+#Robustness tests
+#Model selection criteria
+r1 <- as.numeric(glance(ols1))
+r2 <- as.numeric(glance(ols2))
+r3 <- as.numeric(glance(iv1))
+r4 <- as.numeric(glance(iv2))
+r5 <- as.numeric(glance(fdr_ols1))
+r6 <- as.numeric(glance(fdr_ols2))
+r7 <- as.numeric(glance(fdr_iv1))
+r8 <- as.numeric(glance(fdr_iv2))
+tab <- data.frame(rbind(r1, r2, r3, r4, r5, r6, r7, r8))[,c(1,2,8,9)]
+row.names(tab) <- c("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8")
+kable(tab, 
+      caption="Model comparison, 'education' ", digits=4, 
+      col.names=c("Rsq","AdjRsq","AIC","BIC"))
 
+#Ramsey test of higher-order polynomials (H0: higher order polynomials are needed)
+resettest(mod2, power=2:3, type="fitted")
+
+#VIF (variance inflation factor) test for multicollinearity
+tab <- tidy(vif(fdr_iv2)[, c(1)])
+kable(tab, 
+      caption="Variance inflation factors",
+      col.names=c("regressor", "VIF"))
+#age and age^2 are highly correlated as expected but we can ignore that since one variable is the
+#linear transformation of the other, therefore the econometric problem is not present.
+
+#Heteroskedasticity of error terms w/ Breusch-Pagan test
+kable(tidy(bptest(fdr_iv2)), 
+      caption="Breusch-Pagan heteroskedasticity test")
+
+#testing for serial correlation w/ Breusch Godfrey test
+pbg <- pbgtest(fdr_iv2, type = "F")
+
+write.table(pbg, file = "~/microecon_final/pbg.txt", sep="\t")
 
