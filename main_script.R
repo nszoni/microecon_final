@@ -18,6 +18,10 @@ library(ggplot2)
 library(reshape2)
 library(Hmisc)
 library(corrplot)
+library(broom)
+library(knitr)
+library(psych)
+library(vars)
 
 wd <- file.path('~', 'microecon_final')
 setwd(wd)
@@ -27,11 +31,12 @@ df <- read_dta("Bonjour_data.dta")
 # Descriptive stats -------------------------------------------------------
 
 dfsum <- df[, c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')] %>%
-  dfSummary(., plain.ascii = FALSE, style = "grid", 
-                                                    graph.magnif = 0.75, valid.col = FALSE, tmp.img.dir = "/tmp") 
+  dfSummary(., plain.ascii = FALSE, style = "grid", graph.magnif = 0.75, valid.col = FALSE, tmp.img.dir = "/tmp") 
 
-dfsum$Missing <- NULL
-view(dfsum, file = "~/microecon_final/dfsum.html")
+
+dfsum <- summarise(df, Average = mean(c(age, schyear, highqua, earning, full, married, sm16, sm18), na.rm = T))
+
+write.table(subset(res11, row == 'highqua'), file = "~/microecon_final/res1.txt", sep="\t")
 
 # Feature Selection -----------------------------------------------------------------
 
@@ -133,24 +138,66 @@ iv1 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) | age + I(age**2/100) 
 
 ols2 <- lm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=df)
 
-iv2 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight| twihigh + age + I(age**2/100) + LNandSE + married + own_exp + part,  data=df)
+iv2 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight| twihigh + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight,  data=df)
 
 #panel
 pdf <- pdata.frame(df, index = c("family", "twinno"))
 pdim(pdf)
 
-fdr_ols1 <- plm(log(earning) ~ highqua + age + I(age**2/100), data=df, model = 'fd')
+fdr_ols1 <- plm(log(earning) ~ highqua + age + I(age**2/100), data=pdf, model = 'fd')
 
-fdr_iv1 <- plm(log(earning) ~ highqua + age + I(age**2/100) | twihigh + age + I(age**2/100), data=df, model = 'fd')
+fdr_iv1 <- plm(log(earning) ~ highqua + age + I(age**2/100) | twihigh + age + I(age**2/100), data=pdf, model = 'fd')
 
-fdr_ols2 <- plm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=df, model = 'fd')
+fdr_ols2 <- plm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=pdf, model = 'fd')
 
-fdr_iv2 <- plm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight | twihigh + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=df, model = 'fd')
+fdr_iv2 <- plm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight | twihigh + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=pdf, model = 'fd')
+
+#checking endogeneity by regressing the residuals to the regressors
+# endo <- lm(resid(ols1) ~ highqua + age + I(age**2/100), data=df)
+# summary(endo)
+#both the pvalues and the parameter estimates indicate that there is no relationship between the residuals and the independent variables
+# no ommitted variable bias
 
 #comparing all the models together
 
 stargazer(ols1, iv1, ols2, iv2, fdr_ols1, fdr_iv1, fdr_ols2, fdr_iv2, font.size = "small",
           align = TRUE, type = 'text',  out = "models1.htm")
+
+#Robustness tests
+#Model selection criteria
+r1 <- as.numeric(glance(ols1))
+r2 <- as.numeric(glance(ols2))
+r3 <- as.numeric(glance(iv1))
+r4 <- as.numeric(glance(iv2))
+r5 <- as.numeric(glance(fdr_ols1))
+r6 <- as.numeric(glance(fdr_ols2))
+r7 <- as.numeric(glance(fdr_iv1))
+r8 <- as.numeric(glance(fdr_iv2))
+tab <- data.frame(rbind(r1, r2, r3, r4, r5, r6, r7, r8))[,c(1,2,8,9)]
+row.names(tab) <- c("r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8")
+kable(tab, 
+      caption="Model comparison, 'education' ", digits=4, 
+      col.names=c("Rsq","AdjRsq","AIC","BIC"))
+
+#Ramsey test of higher-order polynomials (H0: higher order polynomials are needed)
+resettest(mod2, power=2:3, type="fitted")
+
+#VIF (variance inflation factor) test for multicollinearity
+tab <- tidy(vif(fdr_iv2)[, c(1)])
+kable(tab, 
+      caption="Variance inflation factors",
+      col.names=c("regressor", "VIF"))
+#age and age^2 are highly correlated as expected but we can ignore that since one variable is the
+#linear transformation of the other, therefore the econometric problem is not present.
+
+#Heteroskedasticity of error terms w/ Breusch-Pagan test
+kable(tidy(bptest(fdr_iv2)), 
+      caption="Breusch-Pagan heteroskedasticity test")
+
+#testing for serial correlation w/ Breusch Godfrey test
+pbg <- pbgtest(fdr_iv2, type = "F")
+
+write.table(pbg, file = "~/microecon_final/pbg.txt", sep="\t")
 
 #smoking as IV
 ivsm16 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) | age + I(age**2/100) + sm16,  data=df)
