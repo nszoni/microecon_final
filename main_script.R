@@ -7,6 +7,17 @@
 
 # Setup -------------------------------------------------------------------
 
+if (!require("pacman")) {
+  install.packages("pacman")
+}
+
+pacman::p_load(AER, haven, ggplot2, dplyr, 
+               plyr, data.table, plm,
+               stargazer, labelled, sjlabelled,
+               summarytools, reshape2, Hmisc,
+               corrplot, caret, foreign, lmtest,
+               broom, knitr)
+
 library(dplyr)
 library(AER)
 library(haven)
@@ -36,7 +47,12 @@ dfsum <- df[, c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'f
 
 dfsum <- summarise(df, Average = mean(c(age, schyear, highqua, earning, full, married, sm16, sm18), na.rm = T))
 
-write.table(subset(res11, row == 'highqua'), file = "~/microecon_final/res1.txt", sep="\t")
+# Table of means -------------------------------------------------------
+
+meant<- colMeans(df[, c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')],
+                  na.rm = TRUE)
+names(meant) <- c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')
+write.table(meant, "~/microecon_final/meant.txt", sep="\t")
 
 # Feature Selection -----------------------------------------------------------------
 
