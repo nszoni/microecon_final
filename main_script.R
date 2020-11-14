@@ -3,7 +3,7 @@
 
 # Final Project.
 # Authors: Winkler Soma, Alexandrov Dániel, Nguyen Nam Son
-# Date: 19-11-2020
+# Date: 16-11-2020
 
 # Setup -------------------------------------------------------------------
 
@@ -11,28 +11,9 @@ if (!require("pacman")) {
   install.packages("pacman")
 }
 
-pacman::p_load(AER, haven, ggplot2, dplyr, 
-               plyr, data.table, plm,
-               stargazer, labelled, sjlabelled,
-               summarytools, reshape2, Hmisc,
-               corrplot, caret, foreign, lmtest,
-               broom, knitr)
-
-library(dplyr)
-library(AER)
-library(haven)
-library(plm)
-library(car)
-library(summarytools)
-library(stargazer)
-library(ggplot2)
-library(reshape2)
-library(Hmisc)
-library(corrplot)
-library(broom)
-library(knitr)
-library(psych)
-library(vars)
+pacman::p_load(AER, haven, ggplot2, dplyr, car, plm, Hmisc,
+               stargazer,summarytools, reshape2, Hmisc,
+               corrplot,broom, knitr,psych, vars)
 
 wd <- file.path('~', 'microecon_final')
 setwd(wd)
