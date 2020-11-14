@@ -33,10 +33,19 @@ dfsum <- summarise(df, Average = mean(c(age, schyear, highqua, earning, full, ma
 meant<- colMeans(df[, c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')],
                   na.rm = TRUE)
 names(meant) <- c('bweight', 'earning', 'schyear', 'highqua', 'age', 'married', 'full', 'own_exp', 'sm16', 'sm18')
+
+#This needs to be specifically tailored to each system (although not essential part of the code)
+#Will be used later as well
 write.table(meant, "~/microecon_final/meant.txt", sep="\t")
 
 # Feature Selection -----------------------------------------------------------------
 
+#First we create the panel data
+pdf <- pdata.frame(df, index = c("family", "twinno"))
+pdim(pdf)
+View(pdf)
+
+#Differenced variables are created for the within method
 pdf$dhighqua <- diff(pdf$highqua)
 pdf$dmarried <- diff(pdf$married)
 pdf$dbweight <- diff(pdf$bweight)
@@ -47,6 +56,10 @@ pdf$dpart <- diff(pdf$part)
 pdf$dself <- diff(pdf$self)
 pdf$dsm16 <- diff(pdf$sm16)
 pdf$dsm18 <- diff(pdf$sm18)
+pdf$logearning <- log(pdf$earning)
+pdf$dlogearning <- diff(pdf$logearning)
+
+#Correlation matrix
 
 flattenCorrMatrix <- function(cormat, pmat) {
   ut <- upper.tri(cormat)
@@ -58,7 +71,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
   )
 }
 
-#basic features
+#Basic features
 
 cormatdf <- df[, c('highqua',
                    'bweight',
@@ -74,10 +87,10 @@ res11 <- flattenCorrMatrix(res1$r, res1$P)
 
 write.table(subset(res11, row == 'highqua'), file = "~/microecon_final/res1.txt", sep="\t")
 
-# Insignificant correlation are crossed
+# Insignificant correlations are crossed
 corrplot(res1$r, type="upper", order="hclust", p.mat = res1$P, sig.level = 0.05, tl.col = "black", tl.srt = 45)
 
-#differenced features
+#Differenced features
 
 cormatdf <- pdf[, c('dhighqua',
                     'dbweight',
@@ -93,10 +106,10 @@ res22 <- flattenCorrMatrix(res2$r, res2$P)
 
 write.table(subset(res22, row == 'dhighqua'), file = "~/microecon_final/res2.txt", sep="\t")
 
-# Insignificant correlation are crossed
+#Insignificant correlation are crossed
 corrplot(res2$r, type="upper", order="hclust", p.mat = res2$P, sig.level = 0.05, tl.col = "black", tl.srt = 45)
 
-#smoking as IV?
+#Smoking as IV?
 
 cormatdf <- pdf[, c('highqua',
                     'sm16',
@@ -111,7 +124,7 @@ write.table(subset(res33, row == 'highqua'), file = "~/microecon_final/res3.txt"
 p3 <- corrplot(res3$r, type="upper", order="hclust", 
                p.mat = res3$P, sig.level = 0.05, tl.col = "black", tl.srt = 45)
 
-#differencing smoking
+#Differencing smoking
 cormatdf <- pdf[, c('dhighqua',
                     'dsm16',
                     'dsm18')]
@@ -127,26 +140,32 @@ p4 <- corrplot(res4$r, type="upper", order="hclust",
 
 # Methods -----------------------------------------------------------------
 
-# simple OLS
+#Between method regressions
 
+#Simple OLS regression
 ols1 <- lm(log(earning) ~ highqua + age + I(age**2/100), data=df)
 
+#First difference regression with between method
 iv1 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) | age + I(age**2/100) + twihigh,  data=df)
 
+#OLS regression with control variables
 ols2 <- lm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=df)
 
+#First difference regression with between method and control variables
 iv2 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight| twihigh + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight,  data=df)
 
-#panel
-pdf <- pdata.frame(df, index = c("family", "twinno"))
-pdim(pdf)
+#Panel regressions - withint method
 
+#OLS regression 
 fdr_ols1 <- plm(log(earning) ~ highqua + age + I(age**2/100), data=pdf, model = 'fd')
 
+#First difference regression 
 fdr_iv1 <- plm(log(earning) ~ highqua + age + I(age**2/100) | twihigh + age + I(age**2/100), data=pdf, model = 'fd')
 
+#OLS with control variables
 fdr_ols2 <- plm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=pdf, model = 'fd')
 
+#First difference regression with control variables
 fdr_iv2 <- plm(log(earning) ~ highqua + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight | twihigh + age + I(age**2/100) + LNandSE + married + own_exp + part + bweight, data=pdf, model = 'fd')
 
 #checking endogeneity by regressing the residuals to the regressors
@@ -196,17 +215,13 @@ pbg <- pbgtest(fdr_iv2, type = "F")
 
 write.table(pbg, file = "~/microecon_final/pbg.txt", sep="\t")
 
-#smoking as IV
+#smoking as IV - test 
 ivsm16 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) | age + I(age**2/100) + sm16,  data=df)
 ivsm18 <- ivreg(log(earning) ~ highqua + age + I(age**2/100) | age + I(age**2/100) + sm18,  data=df)
 
 stargazer(ols1, ivsm16, ivsm18, type = 'text', out = "models2.htm")
 
 #Log hourly earnings diff vs estimated years of schooling diff plot
-
-View(pdf)
-pdf$logearning <- log(pdf$earning)
-pdf$dlogearning <- diff(pdf$logearning)
 
 coef(lm(dlogearning ~ dhighqua, data = pdf))
 
